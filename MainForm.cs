@@ -47,13 +47,32 @@ namespace TinyTools
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
 
-            // Set icon
+            // Set icon - try multiple approaches
             try
             {
-                var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
-                if (File.Exists(iconPath))
+                // First try to load from embedded resources
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                var iconStream = assembly.GetManifestResourceStream("icon.ico");
+                if (iconStream != null)
                 {
-                    Icon = new Icon(iconPath);
+                    Icon = new Icon(iconStream);
+                    if (debugMode)
+                        Console.WriteLine("Loaded icon from embedded resources");
+                }
+                else
+                {
+                    // Try to load from file system
+                    var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
+                    if (File.Exists(iconPath))
+                    {
+                        Icon = new Icon(iconPath);
+                        if (debugMode)
+                            Console.WriteLine("Loaded icon from file system");
+                    }
+                    else if (debugMode)
+                    {
+                        Console.WriteLine("Icon file not found, using default");
+                    }
                 }
             }
             catch (Exception ex)

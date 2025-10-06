@@ -109,9 +109,18 @@ echo.
 REM Create output directory
 if not exist "bin" mkdir bin
 
+REM Check if icon file exists
+if exist "icon.ico" (
+    echo Found icon file: icon.ico
+    set ICON_PARAM=/win32icon:icon.ico
+) else (
+    echo Warning: icon.ico not found, using default icon
+    set ICON_PARAM=
+)
+
 REM Compile the application
 echo Compiling TinyTools.exe...
-%CSC_PATH% /target:winexe /out:bin\TinyTools.exe /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /win32icon:icon.ico Program_Framework.cs MainForm.cs ToolManager_Framework.cs ToolModule.cs Notepad3Hook.cs SettingsManager.cs ConsoleInterface.cs
+%CSC_PATH% /target:winexe /out:bin\TinyTools.exe /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll %ICON_PARAM% Program_Framework.cs MainForm.cs ToolManager_Framework.cs ToolModule.cs Notepad3Hook.cs SettingsManager.cs ConsoleInterface.cs
 
 if %ERRORLEVEL% == 0 (
     echo.
