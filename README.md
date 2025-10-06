@@ -85,8 +85,21 @@ Shows detailed usage information and available options.
 ### Current Tools
 1. **Notepad3 Hotkey** - Press Ctrl+W while Notepad3 is active to close it
 
+### Module Structure
+Each tool module is organized in its own folder under `modules/`:
+
+```
+modules/
+├── Notepad3Hotkey/
+│   └── Notepad3Hook.cs
+└── [Future modules will go here]/
+    └── [Module files]
+```
+
 ### Adding New Tools
-To add new tools, modify the `InitializeTools()` method in `ToolManager.cs`:
+1. **Create a new module folder** under `modules/` (e.g., `modules/MyNewTool/`)
+2. **Add your module files** to the new folder
+3. **Register the module** in `ToolManager.cs` by modifying the `InitializeTools()` method:
 
 ```csharp
 public void InitializeTools()
@@ -115,9 +128,11 @@ public void InitializeTools()
 - `tool_manager_modules.ini` - Module states (auto-created)
 
 ### Source & Build
-- `*.cs` - C# source files
+- `*.cs` - Core application files (Program.cs, MainForm.cs, ToolManager.cs, etc.)
+- `modules/` - **Individual tool modules, each in their own folder**
+  - `modules/Notepad3Hotkey/` - Notepad3 hotkey functionality
 - `TinyTools.csproj` - Project file
-- `build.bat` - Build script
+- `compile*.bat` - Build scripts
 
 ## 🚀 Quick Start
 
