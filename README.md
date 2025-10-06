@@ -84,6 +84,13 @@ Shows detailed usage information and available options.
 
 ### Current Tools
 1. **Notepad3 Hotkey** - Press Ctrl+W while Notepad3 is active to close it
+2. **Screen Dimmer** - Control screen brightness with gamma ramp or overlay methods
+   - **Hardware Gamma Ramp**: Fast, system-wide brightness control using Windows GDI
+   - **Software Overlay**: Transparent black overlay for systems without gamma support
+   - **Auto Mode**: Automatically tries gamma first, falls back to overlay
+   - **System Tray Integration**: Dedicated tray icon with brightness controls when enabled
+   - **Settings Window**: Dedicated configuration window with brightness slider and method selection
+   - **Persistent Settings**: Brightness and method preferences saved automatically
 
 ### Module Structure
 Each tool module is organized in its own folder under `modules/`:
@@ -92,8 +99,12 @@ Each tool module is organized in its own folder under `modules/`:
 modules/
 ├── Notepad3Hotkey/
 │   └── Notepad3Hook.cs
-└── [Future modules will go here]/
-    └── [Module files]
+└── ScreenDimmer/
+    ├── ScreenDimmerManager.cs
+    ├── ScreenDimmerSettingsForm.cs
+    ├── ScreenDimmerOverlayForm.cs
+    ├── ScreenDimmerConfig.cs
+    └── icon.ico
 ```
 
 ### Adding New Tools
@@ -131,6 +142,7 @@ public void InitializeTools()
 - `*.cs` - Core application files (Program.cs, MainForm.cs, ToolManager.cs, etc.)
 - `modules/` - **Individual tool modules, each in their own folder**
   - `modules/Notepad3Hotkey/` - Notepad3 hotkey functionality
+  - `modules/ScreenDimmer/` - Screen brightness control with gamma ramp and overlay
 - `TinyTools.csproj` - Project file
 - `compile*.bat` - Build scripts
 

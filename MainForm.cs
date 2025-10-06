@@ -15,6 +15,7 @@ namespace TinyTools
 
         private ListView listView;
         private Button toggleButton;
+        private Button settingsButton;
         private CheckBox showTrayIconCheckBox;
         private CheckBox minimizeToTrayCheckBox;
         private CheckBox startMinimizedCheckBox;
@@ -100,6 +101,8 @@ namespace TinyTools
             listView.Columns.Add("Tool/Module", 150);
             listView.Columns.Add("Status", 80);
             listView.Columns.Add("Description", 220);
+            listView.SelectedIndexChanged += ListView_SelectedIndexChanged;
+            listView.MouseClick += ListView_MouseClick;
 
             Controls.Add(listView);
 
@@ -112,6 +115,16 @@ namespace TinyTools
             };
             toggleButton.Click += ToggleButton_Click;
             Controls.Add(toggleButton);
+
+            settingsButton = new Button
+            {
+                Text = "Settings...",
+                Location = new Point(170, 220),
+                Size = new Size(100, 30),
+                Enabled = false
+            };
+            settingsButton.Click += SettingsButton_Click;
+            Controls.Add(settingsButton);
 
             showTrayIconCheckBox = new CheckBox
             {
@@ -213,6 +226,114 @@ namespace TinyTools
             }
         }
 
+        private void SettingsButton_Click(object sender, EventArgs e)
+        {
+            if (listView.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Please select a tool first.", "No Selection", 
+                              MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var selectedItem = listView.SelectedItems[0];
+            if (selectedItem.Tag is int index)
+            {
+                try
+                {
+                    var tool = ToolManager.Instance.GetTool(index);
+                    if (tool != null && tool.HasSettings)
+                    {
+                        tool.ShowSettings();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error opening settings: {ex.Message}", "Error", 
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void ListView_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            bool hasSelection = listView.SelectedItems.Count > 0;
+            toggleButton.Enabled = hasSelection;
+            
+            if (hasSelection)
+            {
+                var selectedItem = listView.SelectedItems[0];
+                if (selectedItem.Tag is int index)
+                {
+                    var tool = ToolManager.Instance.GetTool(index);
+                    settingsButton.Enabled = tool != null && tool.HasSettings;
+                }
+                else
+                {
+                    settingsButton.Enabled = false;
+                }
+            }
+            else
+            {
+                settingsButton.Enabled = false;
+            }
+        }
+
+        private void ListView_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                var hitTest = listView.HitTest(e.Location);
+                if (hitTest.Item != null && hitTest.Item.Tag is int index)
+                {
+                    var tool = ToolManager.Instance.GetTool(index);
+                    if (tool != null)
+                    {
+                        ShowModuleContextMenu(tool, index, e.Location);
+                    }
+                }
+            }
+        }
+
+        private void ShowModuleContextMenu(ToolModule tool, int index, Point location)
+        {
+            var contextMenu = new ContextMenuStrip();
+            
+            // Enable/Disable item
+            var toggleItem = new ToolStripMenuItem(tool.Enabled ? "Disable" : "Enable");
+            toggleItem.Click += (s, e) => {
+                ToolManager.Instance.ToggleTool(index);
+                UpdateListView();
+            };
+            contextMenu.Items.Add(toggleItem);
+            
+            // Settings item (if available)
+            if (tool.HasSettings)
+            {
+                var settingsItem = new ToolStripMenuItem("Settings...");
+                settingsItem.Click += (s, e) => tool.ShowSettings();
+                contextMenu.Items.Add(settingsItem);
+            }
+            
+            // Separator
+            contextMenu.Items.Add(new ToolStripSeparator());
+            
+            // Module info
+            var infoItem = new ToolStripMenuItem($"Module: {tool.Name}");
+            infoItem.Enabled = false;
+            contextMenu.Items.Add(infoItem);
+            
+            var descItem = new ToolStripMenuItem($"Description: {tool.Description}");
+            descItem.Enabled = false;
+            contextMenu.Items.Add(descItem);
+            
+            var statusItem = new ToolStripMenuItem($"Status: {(tool.Enabled ? "Enabled" : "Disabled")} | {(tool.IsRunning ? "Running" : "Stopped")}");
+            statusItem.Enabled = false;
+            contextMenu.Items.Add(statusItem);
+            
+            // Show context menu
+            contextMenu.Show(listView, location);
+        }
+
         private void ApplySettingsButton_Click(object sender, EventArgs e)
         {
             SettingsManager.Instance.SetSetting("show_tray_icon", showTrayIconCheckBox.Checked);
@@ -238,11 +359,8 @@ namespace TinyTools
 
         private void OpenConsoleButton_Click(object sender, EventArgs e)
         {
-            var consoleThread = new Thread(() => ConsoleInterface.RunConsoleMode())
-            {
-                IsBackground = true
-            };
-            consoleThread.Start();
+            var consoleWindow = new ConsoleWindow();
+            consoleWindow.Show();
         }
 
         private void CreateTrayIcon()
@@ -300,6 +418,7 @@ namespace TinyTools
             WindowState = FormWindowState.Normal;
             ShowInTaskbar = true;
             BringToFront();
+            Activate();
         }
 
         private void AutoStartEnabledModules()
@@ -321,9 +440,32 @@ namespace TinyTools
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            // If user clicked X button, minimize to tray instead of closing
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                MinimizeToTray();
+                return;
+            }
+            
+            // Only actually close if it's application shutdown or other reasons
             ToolManager.Instance.StopAllTools();
             RemoveTrayIcon();
             base.OnFormClosing(e);
         }
+
+        private void MinimizeToTray()
+        {
+            this.Hide();
+            this.ShowInTaskbar = false;
+            
+            // // Ensure tray icon is visible
+            // if (notifyIcon != null)
+            // {
+            //     notifyIcon.Visible = true;
+            //     notifyIcon.ShowBalloonTip(2000, "TinyTools", "Application minimized to system tray", ToolTipIcon.Info);
+            // }
+        }
+
     }
 }

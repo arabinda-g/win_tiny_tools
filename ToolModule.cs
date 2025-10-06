@@ -12,6 +12,7 @@ namespace TinyTools
 
         private Action startFunction;
         private Action stopFunction;
+        private Action settingsFunction;
 
         public ToolModule(string name, string description)
         {
@@ -29,6 +30,25 @@ namespace TinyTools
         public void SetStopFunction(Action stopFunc)
         {
             stopFunction = stopFunc;
+        }
+
+        public void SetSettingsFunction(Action settingsFunc)
+        {
+            settingsFunction = settingsFunc;
+        }
+
+        public bool HasSettings => settingsFunction != null;
+
+        public void ShowSettings()
+        {
+            try
+            {
+                settingsFunction?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error showing settings for {Name}: {ex.Message}");
+            }
         }
 
         public void Start()

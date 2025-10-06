@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using TinyTools.Modules.ScreenDimmer;
 
 namespace TinyTools
 {
@@ -36,6 +37,36 @@ namespace TinyTools
                 notepad3Tool.Enabled = true; // Default enabled
                 tools.Add(notepad3Tool);
 
+                // Add ScreenDimmer tool
+                var screenDimmerTool = new ToolModule("Screen Dimmer", "Control screen brightness with gamma ramp or overlay");
+                screenDimmerTool.SetStartFunction(delegate() {
+                    var config = ScreenDimmerConfig.Instance;
+                    var manager = ScreenDimmerManager.Instance;
+                    
+                    // Load saved settings
+                    manager.Brightness = config.Brightness;
+                    manager.Method = config.DimmingMethod;
+                    
+                    // Start the dimmer
+                    manager.StartDimmer();
+                    
+                    // Subscribe to changes to save them
+                    manager.BrightnessChanged += delegate(object s, int brightness) {
+                        config.Brightness = brightness;
+                    };
+                    manager.MethodChanged += delegate(object s, ScreenDimmerManager.DimmingMethod method) {
+                        config.DimmingMethod = method;
+                    };
+                });
+                screenDimmerTool.SetStopFunction(delegate() {
+                    ScreenDimmerManager.Instance.StopDimmer();
+                });
+                screenDimmerTool.SetSettingsFunction(delegate() {
+                    ScreenDimmerManager.Instance.ShowSettingsWindow();
+                });
+                screenDimmerTool.Enabled = ScreenDimmerConfig.Instance.Enabled;
+                tools.Add(screenDimmerTool);
+
                 // Load saved module states
                 LoadModuleStates();
             }
@@ -65,7 +96,15 @@ namespace TinyTools
             {
                 if (index >= 0 && index < tools.Count)
                 {
-                    tools[index].Toggle();
+                    var tool = tools[index];
+                    tool.Toggle();
+                    
+                    // Save ScreenDimmer enabled state to its config
+                    if (tool.Name == "Screen Dimmer")
+                    {
+                        ScreenDimmerConfig.Instance.Enabled = tool.Enabled;
+                    }
+                    
                     SaveModuleStates();
                 }
             }

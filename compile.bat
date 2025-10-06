@@ -44,6 +44,8 @@ echo #include ^<windows.h^> > temp_resource.rc
 echo. >> temp_resource.rc
 echo // Application icon >> temp_resource.rc
 echo 1 ICON "icon.ico" >> temp_resource.rc
+echo // ScreenDimmer module icon >> temp_resource.rc
+echo 2 ICON "modules\ScreenDimmer\icon.ico" >> temp_resource.rc
 echo. >> temp_resource.rc
 echo // Version information >> temp_resource.rc
 echo 1 VERSIONINFO >> temp_resource.rc
@@ -127,14 +129,14 @@ if %ERRORLEVEL% neq 0 (
 echo Resource compiled successfully!
 echo.
 echo Compiling TinyTools.exe with embedded resources...
-%CSC_PATH% /target:winexe /out:bin\TinyTools.exe /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /win32res:temp_resource.res Program_Framework.cs MainForm.cs ToolManager_Framework.cs ToolModule.cs modules\Notepad3Hotkey\Notepad3Hook.cs SettingsManager.cs ConsoleInterface.cs
+%CSC_PATH% /target:winexe /out:bin\TinyTools.exe /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /win32res:temp_resource.res Program_Framework.cs MainForm.cs ToolManager_Framework.cs ToolModule.cs modules\Notepad3Hotkey\Notepad3Hook.cs modules\ScreenDimmer\ScreenDimmerManager.cs modules\ScreenDimmer\ScreenDimmerSettingsForm.cs modules\ScreenDimmer\ScreenDimmerOverlayForm.cs modules\ScreenDimmer\ScreenDimmerConfig.cs SettingsManager.cs ConsoleInterface.cs ConsoleWindow.cs
 
 goto :cleanup
 
 :compile_simple
 echo.
 echo Compiling TinyTools.exe with simple icon embedding...
-%CSC_PATH% /target:winexe /out:bin\TinyTools.exe /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /win32icon:icon.ico Program_Framework.cs MainForm.cs ToolManager_Framework.cs ToolModule.cs modules\Notepad3Hotkey\Notepad3Hook.cs SettingsManager.cs ConsoleInterface.cs
+%CSC_PATH% /target:winexe /out:bin\TinyTools.exe /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /win32icon:icon.ico Program_Framework.cs MainForm.cs ToolManager_Framework.cs ToolModule.cs modules\Notepad3Hotkey\Notepad3Hook.cs modules\ScreenDimmer\ScreenDimmerManager.cs modules\ScreenDimmer\ScreenDimmerSettingsForm.cs modules\ScreenDimmer\ScreenDimmerOverlayForm.cs modules\ScreenDimmer\ScreenDimmerConfig.cs SettingsManager.cs ConsoleInterface.cs ConsoleWindow.cs
 
 :cleanup
 REM Clean up temporary files
