@@ -30,6 +30,9 @@ namespace TinyTools.Modules.ScreenDimmer
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
 
+        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
+
         // Gamma ramp structure
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
         public struct RAMP
@@ -106,23 +109,8 @@ namespace TinyTools.Modules.ScreenDimmer
 
         private static Icon GetEmbeddedScreenDimmerIcon()
         {
-            try
-            {
-                // Try to load icon from embedded resources (resource ID 2)
-                IntPtr hInstance = GetModuleHandle(null);
-                IntPtr hIcon = LoadIcon(hInstance, new IntPtr(2));
-                
-                if (hIcon != IntPtr.Zero)
-                {
-                    return Icon.FromHandle(hIcon);
-                }
-            }
-            catch
-            {
-                // Fallback to system icon if embedded icon fails
-            }
-            
-            return SystemIcons.Application;
+            // Use the embedded ScreenDimmer-specific icon
+            return ScreenDimmerResources.GetScreenDimmerIcon();
         }
 
         public void StartDimmer()
