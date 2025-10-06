@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -9,6 +10,9 @@ namespace TinyTools
 {
     public partial class MainForm : Form
     {
+        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
+
         private ListView listView;
         private Button toggleButton;
         private CheckBox showTrayIconCheckBox;
@@ -47,31 +51,32 @@ namespace TinyTools
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
 
-            // Set icon - try multiple approaches
+            // Set the window icon explicitly
             try
             {
-                // First try to load from embedded resources
-                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                var iconStream = assembly.GetManifestResourceStream("icon.ico");
-                if (iconStream != null)
+                // Extract the icon from the executable itself
+                var iconHandle = ExtractIcon(System.Diagnostics.Process.GetCurrentProcess().Handle, 
+                                           System.Reflection.Assembly.GetExecutingAssembly().Location, 0);
+                
+                if (iconHandle != IntPtr.Zero)
                 {
-                    Icon = new Icon(iconStream);
+                    Icon = Icon.FromHandle(iconHandle);
                     if (debugMode)
-                        Console.WriteLine("Loaded icon from embedded resources");
+                        Console.WriteLine("Loaded icon from executable");
                 }
                 else
                 {
-                    // Try to load from file system
+                    // Fallback: try to load from file if it exists
                     var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
                     if (File.Exists(iconPath))
                     {
                         Icon = new Icon(iconPath);
                         if (debugMode)
-                            Console.WriteLine("Loaded icon from file system");
+                            Console.WriteLine("Loaded icon from file");
                     }
                     else if (debugMode)
                     {
-                        Console.WriteLine("Icon file not found, using default");
+                        Console.WriteLine("No custom icon found, using default");
                     }
                 }
             }
@@ -251,13 +256,12 @@ namespace TinyTools
                 Visible = true
             };
 
-            // Set icon
+            // Use the same icon as the main form (embedded in executable)
             try
             {
-                var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
-                if (File.Exists(iconPath))
+                if (Icon != null)
                 {
-                    notifyIcon.Icon = new Icon(iconPath);
+                    notifyIcon.Icon = Icon;
                 }
                 else
                 {
