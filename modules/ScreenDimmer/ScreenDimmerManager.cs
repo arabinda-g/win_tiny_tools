@@ -180,11 +180,20 @@ namespace TinyTools.Modules.ScreenDimmer
 
             if (settingsForm.Visible)
             {
+                // If window is minimized, restore it
+                if (settingsForm.WindowState == FormWindowState.Minimized)
+                {
+                    settingsForm.WindowState = FormWindowState.Normal;
+                }
+                
+                // Bring to front and activate
                 settingsForm.BringToFront();
+                settingsForm.Activate();
             }
             else
             {
                 settingsForm.Show();
+                settingsForm.Activate();
             }
         }
 
@@ -230,7 +239,7 @@ namespace TinyTools.Modules.ScreenDimmer
                 contextMenu.Items.Add(resetItem);
 
                 trayIcon.ContextMenuStrip = contextMenu;
-                trayIcon.DoubleClick += (s, e) => ShowSettingsWindow();
+                trayIcon.Click += (s, e) => ShowSettingsWindow();
             }
             catch (Exception ex)
             {

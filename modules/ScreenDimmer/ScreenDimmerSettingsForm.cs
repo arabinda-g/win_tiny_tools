@@ -77,6 +77,9 @@ namespace TinyTools.Modules.ScreenDimmer
                 Size = new Size(400, 120),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
+            // Enable mouse wheel scrolling for brightness control
+            brightnessGroup.MouseWheel += BrightnessGroup_MouseWheel;
+            brightnessGroup.MouseEnter += (s, e) => brightnessGroup.Focus();
             this.Controls.Add(brightnessGroup);
 
             // Brightness label
@@ -88,6 +91,7 @@ namespace TinyTools.Modules.ScreenDimmer
                 TextAlign = ContentAlignment.MiddleCenter,
                 Font = new Font("Segoe UI", 10F)
             };
+            brightnessLabel.MouseWheel += BrightnessGroup_MouseWheel;
             brightnessGroup.Controls.Add(brightnessLabel);
 
             // Brightness slider
@@ -102,6 +106,7 @@ namespace TinyTools.Modules.ScreenDimmer
                 TickStyle = TickStyle.BottomRight
             };
             brightnessSlider.ValueChanged += BrightnessSlider_ValueChanged;
+            brightnessSlider.MouseWheel += BrightnessGroup_MouseWheel;
             brightnessGroup.Controls.Add(brightnessSlider);
 
             // Method Group
@@ -246,6 +251,21 @@ namespace TinyTools.Modules.ScreenDimmer
             this.Hide();
         }
 
+        private void BrightnessGroup_MouseWheel(object? sender, MouseEventArgs e)
+        {
+            // Calculate brightness change based on wheel delta
+            // Standard wheel delta is 120 per notch, we'll change by 1% per notch
+            int brightnessChange = (e.Delta / 120) * 1;
+            int newBrightness = Math.Max(10, Math.Min(100, brightnessSlider.Value + brightnessChange));
+            
+            if (newBrightness != brightnessSlider.Value)
+            {
+                brightnessSlider.Value = newBrightness;
+                manager.Brightness = newBrightness;
+                UpdateBrightnessLabel(newBrightness);
+            }
+        }
+
         // Manager event handlers
         private void OnBrightnessChanged(object? sender, int brightness)
         {
@@ -292,6 +312,18 @@ namespace TinyTools.Modules.ScreenDimmer
                 manager.MethodChanged -= OnMethodChanged;
                 base.OnFormClosing(e);
             }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Handle ESC key to close the window
+            if (keyData == Keys.Escape)
+            {
+                this.Hide();
+                return true;
+            }
+            
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         protected override void SetVisibleCore(bool value)
