@@ -101,7 +101,7 @@ namespace TinyTools.Modules.ScreenDimmer
             {
                 Location = new Point(20, 60),
                 Size = new Size(360, 45),
-                Minimum = 10,
+                Minimum = 1,
                 Maximum = 100,
                 Value = 100,
                 TickFrequency = 10,
@@ -288,7 +288,7 @@ namespace TinyTools.Modules.ScreenDimmer
             // Calculate brightness change based on wheel delta
             // Standard wheel delta is 120 per notch, we'll change by 1% per notch
             int brightnessChange = (e.Delta / 120) * 1;
-            int newBrightness = Math.Max(10, Math.Min(100, brightnessSlider.Value + brightnessChange));
+            int newBrightness = Math.Max(1, Math.Min(100, brightnessSlider.Value + brightnessChange));
             
             if (newBrightness != brightnessSlider.Value)
             {

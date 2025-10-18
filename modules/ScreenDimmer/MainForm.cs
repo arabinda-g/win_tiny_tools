@@ -104,7 +104,7 @@ namespace ScreenDimmer
             {
                 Location = new Point(50, 50),
                 Size = new Size(300, 45),
-                Minimum = 10,
+                Minimum = 1,
                 Maximum = 100,
                 Value = 100,
                 TickFrequency = 10,
@@ -265,8 +265,8 @@ namespace ScreenDimmer
 
         private void SetScreenBrightness(int brightness)
         {
-            // Clamp brightness between 10 and 100
-            brightness = Math.Max(10, Math.Min(100, brightness));
+            // Clamp brightness between 1 and 100
+            brightness = Math.Max(1, Math.Min(100, brightness));
 
             switch (currentDimmingMethod)
             {
@@ -307,7 +307,7 @@ namespace ScreenDimmer
 
             for (int i = 0; i < 256; i++)
             {
-                ushort value = (ushort)(Math.Pow((double)i / 255.0, 1.0 / gamma) * 65535.0 * gamma);
+                ushort value = (ushort)(Math.Pow((double)i / 255.0, 1.0 / gamma) * 65535.0);
                 value = Math.Min(value, (ushort)65535);
 
                 gammaRamp.Red[i] = value;

@@ -80,7 +80,7 @@ namespace TinyTools.Modules.ScreenDimmer
             {
                 if (value != currentBrightness)
                 {
-                    currentBrightness = Math.Max(10, Math.Min(100, value));
+                    currentBrightness = Math.Max(1, Math.Min(100, value));
                     if (isRunning)
                     {
                         SetScreenBrightness(currentBrightness);
@@ -387,7 +387,7 @@ namespace TinyTools.Modules.ScreenDimmer
 
         private void SetScreenBrightness(int brightness)
         {
-            brightness = Math.Max(10, Math.Min(100, brightness));
+            brightness = Math.Max(1, Math.Min(100, brightness));
 
             switch (currentDimmingMethod)
             {
@@ -426,7 +426,7 @@ namespace TinyTools.Modules.ScreenDimmer
 
             for (int i = 0; i < 256; i++)
             {
-                ushort value = (ushort)(Math.Pow((double)i / 255.0, 1.0 / gamma) * 65535.0 * gamma);
+                ushort value = (ushort)(Math.Pow((double)i / 255.0, 1.0 / gamma) * 65535.0);
                 value = Math.Min(value, (ushort)65535);
 
                 gammaRamp.Red[i] = value;
@@ -533,7 +533,7 @@ namespace TinyTools.Modules.ScreenDimmer
             {
                 // Calculate brightness change (1% per wheel notch)
                 int brightnessChange = (e.Delta > 0) ? 1 : -1;
-                int newBrightness = Math.Max(10, Math.Min(100, currentBrightness + brightnessChange));
+                int newBrightness = Math.Max(1, Math.Min(100, currentBrightness + brightnessChange));
                 
                 if (newBrightness != currentBrightness)
                 {
