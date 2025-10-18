@@ -20,6 +20,10 @@ namespace TinyTools
         private CheckBox minimizeToTrayCheckBox;
         private CheckBox startMinimizedCheckBox;
         private CheckBox startWithWindowsCheckBox;
+        private Label logLevelLabel;
+        private ComboBox logLevelComboBox;
+        private Button viewLogButton;
+        private Button clearLogButton;
         private Button applySettingsButton;
         private Button openConsoleButton;
         private NotifyIcon notifyIcon;
@@ -32,22 +36,26 @@ namespace TinyTools
             this.debugMode = debugMode;
             InitializeComponent();
             LoadSettings();
+            InitializeLogging();
             UpdateListView();
             CreateTrayIcon();
             AutoStartEnabledModules();
+            
+            Logger.Instance.LogInfo("TinyTools application started");
             
             if (SettingsManager.Instance.GetSetting("start_minimized") && !forceShow)
             {
                 WindowState = FormWindowState.Minimized;
                 ShowInTaskbar = false;
                 Hide();
+                Logger.Instance.LogDebug("Application started minimized to tray");
             }
         }
 
         private void InitializeComponent()
         {
             Text = "TinyTools";
-            Size = new Size(500, 450);
+            Size = new Size(500, 520);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
@@ -158,10 +166,46 @@ namespace TinyTools
             };
             Controls.Add(startWithWindowsCheckBox);
 
+            logLevelLabel = new Label
+            {
+                Text = "Debug Log Level:",
+                Location = new Point(10, 390),
+                Size = new Size(100, 25)
+            };
+            Controls.Add(logLevelLabel);
+
+            logLevelComboBox = new ComboBox
+            {
+                Location = new Point(115, 390),
+                Size = new Size(100, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            logLevelComboBox.Items.AddRange(new[] { "Off", "Error", "Warning", "Info", "Debug", "Trace" });
+            logLevelComboBox.SelectedIndexChanged += LogLevelComboBox_SelectedIndexChanged;
+            Controls.Add(logLevelComboBox);
+
+            viewLogButton = new Button
+            {
+                Text = "View Log",
+                Location = new Point(220, 390),
+                Size = new Size(80, 25)
+            };
+            viewLogButton.Click += ViewLogButton_Click;
+            Controls.Add(viewLogButton);
+
+            clearLogButton = new Button
+            {
+                Text = "Clear Log",
+                Location = new Point(305, 390),
+                Size = new Size(80, 25)
+            };
+            clearLogButton.Click += ClearLogButton_Click;
+            Controls.Add(clearLogButton);
+
             applySettingsButton = new Button
             {
                 Text = "Apply Settings",
-                Location = new Point(220, 360),
+                Location = new Point(220, 430),
                 Size = new Size(100, 30)
             };
             applySettingsButton.Click += ApplySettingsButton_Click;
@@ -170,7 +214,7 @@ namespace TinyTools
             openConsoleButton = new Button
             {
                 Text = "Open Console",
-                Location = new Point(330, 360),
+                Location = new Point(330, 430),
                 Size = new Size(100, 30)
             };
             openConsoleButton.Click += OpenConsoleButton_Click;
@@ -183,6 +227,21 @@ namespace TinyTools
             minimizeToTrayCheckBox.Checked = SettingsManager.Instance.GetSetting("minimize_to_tray");
             startMinimizedCheckBox.Checked = SettingsManager.Instance.GetSetting("start_minimized");
             startWithWindowsCheckBox.Checked = SettingsManager.Instance.GetSetting("start_with_windows");
+            
+            var logLevel = SettingsManager.Instance.GetStringSetting("log_level");
+            if (string.IsNullOrEmpty(logLevel)) logLevel = "Off";
+            logLevelComboBox.SelectedItem = logLevel;
+        }
+
+        private void InitializeLogging()
+        {
+            var logLevelString = SettingsManager.Instance.GetStringSetting("log_level");
+            if (string.IsNullOrEmpty(logLevelString)) logLevelString = "Off";
+            
+            if (Enum.TryParse<LogLevel>(logLevelString, out var logLevel))
+            {
+                Logger.Instance.LogLevel = logLevel;
+            }
         }
 
         private void UpdateListView()
@@ -203,8 +262,11 @@ namespace TinyTools
 
         private void ToggleButton_Click(object sender, EventArgs e)
         {
+            Logger.Instance.LogDebug("Toggle button clicked");
+            
             if (listView.SelectedItems.Count == 0)
             {
+                Logger.Instance.LogWarning("Toggle button clicked but no tool selected");
                 MessageBox.Show("Please select a tool first.", "No Selection", 
                               MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -215,11 +277,15 @@ namespace TinyTools
             {
                 try
                 {
+                    var tool = ToolManager.Instance.GetTool(index);
+                    Logger.Instance.LogInfo($"Toggling tool: {tool?.Name} (index: {index})");
                     ToolManager.Instance.ToggleTool(index);
                     UpdateListView();
+                    Logger.Instance.LogDebug($"Tool toggle completed successfully");
                 }
                 catch (Exception ex)
                 {
+                    Logger.Instance.LogError($"Error toggling tool at index {index}", ex);
                     MessageBox.Show($"Error toggling tool: {ex.Message}", "Error", 
                                   MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
@@ -228,8 +294,11 @@ namespace TinyTools
 
         private void SettingsButton_Click(object sender, EventArgs e)
         {
+            Logger.Instance.LogDebug("Settings button clicked");
+            
             if (listView.SelectedItems.Count == 0)
             {
+                Logger.Instance.LogWarning("Settings button clicked but no tool selected");
                 MessageBox.Show("Please select a tool first.", "No Selection", 
                               MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -243,11 +312,18 @@ namespace TinyTools
                     var tool = ToolManager.Instance.GetTool(index);
                     if (tool != null && tool.HasSettings)
                     {
+                        Logger.Instance.LogInfo($"Opening settings for tool: {tool.Name}");
                         tool.ShowSettings();
+                        Logger.Instance.LogDebug("Tool settings window opened successfully");
+                    }
+                    else
+                    {
+                        Logger.Instance.LogWarning($"Tool {tool?.Name} does not have settings or is null");
                     }
                 }
                 catch (Exception ex)
                 {
+                    Logger.Instance.LogError($"Error opening settings for tool at index {index}", ex);
                     MessageBox.Show($"Error opening settings: {ex.Message}", "Error", 
                                   MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
@@ -334,8 +410,73 @@ namespace TinyTools
             contextMenu.Show(listView, location);
         }
 
+        private void LogLevelComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (logLevelComboBox.SelectedItem != null)
+            {
+                var selectedLevel = logLevelComboBox.SelectedItem.ToString();
+                if (Enum.TryParse<LogLevel>(selectedLevel, out var logLevel))
+                {
+                    Logger.Instance.LogLevel = logLevel;
+                    SettingsManager.Instance.SetStringSetting("log_level", selectedLevel);
+                    Logger.Instance.LogInfo($"Log level changed to: {selectedLevel}");
+                }
+            }
+        }
+
+        private void ViewLogButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var logFilePath = Logger.Instance.GetLogFilePath();
+                if (File.Exists(logFilePath))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = logFilePath,
+                        UseShellExecute = true
+                    });
+                    Logger.Instance.LogDebug("Log file opened for viewing");
+                }
+                else
+                {
+                    MessageBox.Show("No log file exists yet.", "TinyTools", 
+                                  MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError("Failed to open log file", ex);
+                MessageBox.Show($"Failed to open log file: {ex.Message}", "Error", 
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void ClearLogButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var result = MessageBox.Show("Are you sure you want to clear the log file?", "Clear Log", 
+                                           MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (result == DialogResult.Yes)
+                {
+                    Logger.Instance.ClearLog();
+                    MessageBox.Show("Log file cleared successfully!", "TinyTools", 
+                                  MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError("Failed to clear log file", ex);
+                MessageBox.Show($"Failed to clear log file: {ex.Message}", "Error", 
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void ApplySettingsButton_Click(object sender, EventArgs e)
         {
+            Logger.Instance.LogDebug("Applying settings...");
+            
             SettingsManager.Instance.SetSetting("show_tray_icon", showTrayIconCheckBox.Checked);
             SettingsManager.Instance.SetSetting("minimize_to_tray", minimizeToTrayCheckBox.Checked);
             SettingsManager.Instance.SetSetting("start_minimized", startMinimizedCheckBox.Checked);
@@ -353,6 +494,7 @@ namespace TinyTools
                 RemoveTrayIcon();
             }
 
+            Logger.Instance.LogInfo("Settings applied successfully");
             MessageBox.Show("Settings applied successfully!", "TinyTools", 
                           MessageBoxButtons.OK, MessageBoxIcon.Information);
         }

@@ -11,6 +11,7 @@ namespace TinyTools
         public static SettingsManager Instance => instance.Value;
 
         private readonly Dictionary<string, bool> settings = new();
+        private readonly Dictionary<string, string> stringSettings = new();
         private readonly string configPath;
 
         private SettingsManager()
@@ -20,34 +21,78 @@ namespace TinyTools
 
         public void LoadSettings()
         {
+            Logger.Instance.LogDebug("Loading application settings...");
+            
             // Default settings
             settings["show_tray_icon"] = true;
             settings["minimize_to_tray"] = false;
             settings["start_minimized"] = false;
             settings["start_with_windows"] = false;
+            
+            // Default string settings
+            stringSettings["log_level"] = "Off";
 
-            if (!File.Exists(configPath)) return;
+            if (!File.Exists(configPath))
+            {
+                Logger.Instance.LogInfo("Settings file does not exist, using defaults");
+                return;
+            }
 
-            foreach (var line in File.ReadAllLines(configPath))
+            var lines = File.ReadAllLines(configPath);
+            Logger.Instance.LogTrace($"Reading {lines.Length} lines from settings file: {configPath}");
+            
+            foreach (var line in lines)
             {
                 var parts = line.Split('=');
                 if (parts.Length == 2)
                 {
                     var key = parts[0].Trim();
                     var value = parts[1].Trim();
-                    settings[key] = value == "1" || value.ToLower() == "true";
+                    
+                    // Try to parse as boolean first
+                    if (value == "1" || value.ToLower() == "true" || value.ToLower() == "false" || value == "0")
+                    {
+                        var boolValue = value == "1" || value.ToLower() == "true";
+                        settings[key] = boolValue;
+                        Logger.Instance.LogTrace($"Loaded boolean setting: {key} = {boolValue}");
+                    }
+                    else
+                    {
+                        // Store as string setting
+                        stringSettings[key] = value;
+                        Logger.Instance.LogTrace($"Loaded string setting: {key} = {value}");
+                    }
                 }
             }
+            Logger.Instance.LogInfo("Application settings loaded successfully");
         }
 
         public void SaveSettings()
         {
-            var lines = new List<string>();
-            foreach (var pair in settings)
+            try
             {
-                lines.Add($"{pair.Key}={pair.Value}");
+                Logger.Instance.LogDebug("Saving application settings...");
+                var lines = new List<string>();
+                
+                foreach (var pair in settings)
+                {
+                    lines.Add($"{pair.Key}={pair.Value}");
+                    Logger.Instance.LogTrace($"Saving boolean setting: {pair.Key} = {pair.Value}");
+                }
+                
+                foreach (var pair in stringSettings)
+                {
+                    lines.Add($"{pair.Key}={pair.Value}");
+                    Logger.Instance.LogTrace($"Saving string setting: {pair.Key} = {pair.Value}");
+                }
+                
+                File.WriteAllLines(configPath, lines);
+                Logger.Instance.LogInfo($"Application settings saved successfully to: {configPath}");
             }
-            File.WriteAllLines(configPath, lines);
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError("Failed to save application settings", ex);
+            }
         }
 
         public bool GetSetting(string key)
@@ -60,9 +105,24 @@ namespace TinyTools
             settings[key] = value;
         }
 
+        public string GetStringSetting(string key)
+        {
+            return stringSettings.ContainsKey(key) ? stringSettings[key] : string.Empty;
+        }
+
+        public void SetStringSetting(string key, string value)
+        {
+            stringSettings[key] = value;
+        }
+
         public Dictionary<string, bool> GetAllSettings()
         {
             return new Dictionary<string, bool>(settings);
+        }
+
+        public Dictionary<string, string> GetAllStringSettings()
+        {
+            return new Dictionary<string, string>(stringSettings);
         }
 
         public void SetStartupRegistry(bool enable)

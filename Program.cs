@@ -13,21 +13,37 @@ namespace TinyTools
         [STAThread]
         static void Main(string[] args)
         {
+            // Initialize settings first to get log level
+            SettingsManager.Instance.LoadSettings();
+            
+            // Initialize logging based on settings
+            var logLevelString = SettingsManager.Instance.GetStringSetting("log_level");
+            if (string.IsNullOrEmpty(logLevelString)) logLevelString = "Off";
+            if (Enum.TryParse<LogLevel>(logLevelString, out var logLevel))
+            {
+                Logger.Instance.LogLevel = logLevel;
+            }
+            
+            Logger.Instance.LogInfo($"TinyTools application starting with arguments: [{string.Join(", ", args)}]");
+            
             // Parse command line arguments
             if (args.Contains("--console") || args.Contains("-c"))
             {
+                Logger.Instance.LogInfo("Console mode requested via command line");
                 consoleMode = true;
                 guiMode = false;
             }
 
             if (args.Contains("--help") || args.Contains("-h"))
             {
+                Logger.Instance.LogInfo("Help requested via command line");
                 ShowHelp();
                 return;
             }
 
             if (args.Contains("--notepad3-only"))
             {
+                Logger.Instance.LogInfo("Notepad3-only mode requested via command line");
                 consoleMode = true;
                 guiMode = false;
                 RunNotepad3Only();
@@ -36,32 +52,39 @@ namespace TinyTools
 
             // Initialize tools
             ToolManager.Instance.InitializeTools();
-            SettingsManager.Instance.LoadSettings();
 
             if (consoleMode)
             {
+                Logger.Instance.LogInfo("Starting in console mode");
                 // Auto-start enabled modules in console mode
                 ToolManager.Instance.AutoStartEnabledModules();
                 ConsoleInterface.RunConsoleMode();
+                Logger.Instance.LogInfo("Console mode ended");
                 return;
             }
 
             // GUI Mode
+            Logger.Instance.LogInfo("Starting in GUI mode");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             bool forceShow = args.Contains("--show");
             bool debugMode = args.Contains("--debug");
 
+            Logger.Instance.LogDebug($"GUI mode options - ForceShow: {forceShow}, DebugMode: {debugMode}");
+
             if (debugMode)
             {
+                Logger.Instance.LogInfo("Debug mode enabled - allocating console");
                 AllocConsole();
                 Console.WriteLine("Debug Mode: GUI + Console");
                 Console.WriteLine("GUI window should appear...");
             }
 
             var mainForm = new MainForm(forceShow, debugMode);
+            Logger.Instance.LogDebug("MainForm created, starting application message loop");
             Application.Run(mainForm);
+            Logger.Instance.LogInfo("Application message loop ended");
         }
 
         private static void ShowHelp()
