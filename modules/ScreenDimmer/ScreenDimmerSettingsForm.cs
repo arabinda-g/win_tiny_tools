@@ -10,16 +10,18 @@ namespace TinyTools.Modules.ScreenDimmer
         private readonly ScreenDimmerManager manager;
         
         // Controls
-        private TrackBar brightnessSlider;
-        private Label brightnessLabel;
-        private Label methodLabel;
-        private ComboBox methodComboBox;
-        private Label statusLabel;
-        private Button resetButton;
-        private Button closeButton;
-        private GroupBox brightnessGroup;
-        private GroupBox methodGroup;
-        private GroupBox actionsGroup;
+        private TrackBar brightnessSlider = null!;
+        private Label brightnessLabel = null!;
+        private Label methodLabel = null!;
+        private ComboBox methodComboBox = null!;
+        private Label statusLabel = null!;
+        private Button resetButton = null!;
+        private Button closeButton = null!;
+        private GroupBox brightnessGroup = null!;
+        private GroupBox methodGroup = null!;
+        private GroupBox hotkeyGroup = null!;
+        private GroupBox actionsGroup = null!;
+        private CheckBox globalHotkeyCheckBox = null!;
 
         [DllImport("user32.dll")]
         private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
@@ -51,7 +53,7 @@ namespace TinyTools.Modules.ScreenDimmer
         {
             // Form properties
             this.Text = "Screen Dimmer Settings";
-            this.Size = new Size(450, 350);
+            this.Size = new Size(450, 420);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.MinimizeBox = true;
@@ -159,11 +161,33 @@ namespace TinyTools.Modules.ScreenDimmer
             };
             methodGroup.Controls.Add(statusLabel);
 
+            // Hotkey Group
+            hotkeyGroup = new GroupBox
+            {
+                Text = "Global Hotkey",
+                Location = new Point(20, 260),
+                Size = new Size(400, 60),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            this.Controls.Add(hotkeyGroup);
+
+            // Global hotkey checkbox
+            globalHotkeyCheckBox = new CheckBox
+            {
+                Text = "Enable Ctrl+Shift+Mouse Wheel brightness control",
+                Location = new Point(20, 25),
+                Size = new Size(360, 25),
+                Font = new Font("Segoe UI", 9F),
+                Checked = true
+            };
+            globalHotkeyCheckBox.CheckedChanged += GlobalHotkeyCheckBox_CheckedChanged;
+            hotkeyGroup.Controls.Add(globalHotkeyCheckBox);
+
             // Actions Group
             actionsGroup = new GroupBox
             {
                 Text = "Actions",
-                Location = new Point(20, 260),
+                Location = new Point(20, 330),
                 Size = new Size(400, 60),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
@@ -200,6 +224,9 @@ namespace TinyTools.Modules.ScreenDimmer
 
             // Load method
             methodComboBox.SelectedIndex = (int)manager.Method;
+            
+            // Load global hotkey setting
+            globalHotkeyCheckBox.Checked = manager.GlobalHotkeyEnabled;
             
             UpdateStatusLabel();
         }
@@ -249,6 +276,11 @@ namespace TinyTools.Modules.ScreenDimmer
         private void CloseButton_Click(object? sender, EventArgs e)
         {
             this.Hide();
+        }
+
+        private void GlobalHotkeyCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            manager.GlobalHotkeyEnabled = globalHotkeyCheckBox.Checked;
         }
 
         private void BrightnessGroup_MouseWheel(object? sender, MouseEventArgs e)

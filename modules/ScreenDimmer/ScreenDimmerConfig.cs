@@ -16,11 +16,13 @@ namespace TinyTools.Modules.ScreenDimmer
         private const string KEY_BRIGHTNESS = "Brightness";
         private const string KEY_DIMMING_METHOD = "DimmingMethod";
         private const string KEY_ENABLED = "Enabled";
+        private const string KEY_GLOBAL_HOTKEY_ENABLED = "GlobalHotkeyEnabled";
 
         // Default values
         public int DefaultBrightness => 100;
         public ScreenDimmerManager.DimmingMethod DefaultDimmingMethod => ScreenDimmerManager.DimmingMethod.Auto;
         public bool DefaultEnabled => false;
+        public bool DefaultGlobalHotkeyEnabled => true;
 
         // Properties
         public int Brightness
@@ -39,6 +41,12 @@ namespace TinyTools.Modules.ScreenDimmer
         {
             get => GetBool(KEY_ENABLED, DefaultEnabled);
             set => SetValue(KEY_ENABLED, value.ToString());
+        }
+
+        public bool GlobalHotkeyEnabled
+        {
+            get => GetBool(KEY_GLOBAL_HOTKEY_ENABLED, DefaultGlobalHotkeyEnabled);
+            set => SetValue(KEY_GLOBAL_HOTKEY_ENABLED, value.ToString());
         }
 
         private ScreenDimmerConfig()
@@ -98,10 +106,12 @@ namespace TinyTools.Modules.ScreenDimmer
                     $"# Brightness: 10-100 (default: {DefaultBrightness})",
                     $"# DimmingMethod: GammaRamp, Overlay, Auto (default: {DefaultDimmingMethod})",
                     $"# Enabled: true/false (default: {DefaultEnabled})",
+                    $"# GlobalHotkeyEnabled: true/false (default: {DefaultGlobalHotkeyEnabled})",
                     "",
                     $"{KEY_BRIGHTNESS}={Brightness}",
                     $"{KEY_DIMMING_METHOD}={DimmingMethod}",
                     $"{KEY_ENABLED}={Enabled}",
+                    $"{KEY_GLOBAL_HOTKEY_ENABLED}={GlobalHotkeyEnabled}",
                     "",
                     $"# Last updated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
                 };
@@ -148,11 +158,12 @@ namespace TinyTools.Modules.ScreenDimmer
             Brightness = DefaultBrightness;
             DimmingMethod = DefaultDimmingMethod;
             Enabled = DefaultEnabled;
+            GlobalHotkeyEnabled = DefaultGlobalHotkeyEnabled;
         }
 
         public string GetConfigInfo()
         {
-            return $"ScreenDimmer Config: Brightness={Brightness}%, Method={DimmingMethod}, Enabled={Enabled}";
+            return $"ScreenDimmer Config: Brightness={Brightness}%, Method={DimmingMethod}, Enabled={Enabled}, GlobalHotkey={GlobalHotkeyEnabled}";
         }
     }
 }

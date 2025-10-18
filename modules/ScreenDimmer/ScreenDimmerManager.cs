@@ -61,6 +61,7 @@ namespace TinyTools.Modules.ScreenDimmer
         private ScreenDimmerSettingsForm? settingsForm;
         private ScreenDimmerOverlayForm? overlayForm;
         private NotifyIcon? trayIcon;
+        private GlobalMouseHook? globalMouseHook;
         
         private int currentBrightness = 100;
         private RAMP originalGammaRamp;
@@ -69,6 +70,7 @@ namespace TinyTools.Modules.ScreenDimmer
         private DimmingMethod userSelectedMethod = DimmingMethod.Auto;
         private bool gammaSupported = true;
         private bool isRunning = false;
+        private bool globalHotkeyEnabled = true;
 
         // Configuration properties
         public int Brightness
@@ -105,7 +107,44 @@ namespace TinyTools.Modules.ScreenDimmer
             }
         }
 
-        private ScreenDimmerManager() { }
+        public bool GlobalHotkeyEnabled
+        {
+            get => globalHotkeyEnabled;
+            set
+            {
+                if (value != globalHotkeyEnabled)
+                {
+                    globalHotkeyEnabled = value;
+                    if (isRunning)
+                    {
+                        if (globalHotkeyEnabled)
+                        {
+                            StartGlobalHotkey();
+                        }
+                        else
+                        {
+                            StopGlobalHotkey();
+                        }
+                    }
+                    // Save to config
+                    ScreenDimmerConfig.Instance.GlobalHotkeyEnabled = value;
+                }
+            }
+        }
+
+        private ScreenDimmerManager() 
+        {
+            // Load settings from config
+            LoadSettings();
+        }
+
+        private void LoadSettings()
+        {
+            var config = ScreenDimmerConfig.Instance;
+            currentBrightness = config.Brightness;
+            userSelectedMethod = config.DimmingMethod;
+            globalHotkeyEnabled = config.GlobalHotkeyEnabled;
+        }
 
         private static Icon GetEmbeddedScreenDimmerIcon()
         {
@@ -136,6 +175,12 @@ namespace TinyTools.Modules.ScreenDimmer
             ApplyDimmingMethod();
             SetScreenBrightness(currentBrightness);
 
+            // Start global hotkey if enabled
+            if (globalHotkeyEnabled)
+            {
+                StartGlobalHotkey();
+            }
+
             isRunning = true;
             Console.WriteLine("✓ ScreenDimmer started");
         }
@@ -152,6 +197,9 @@ namespace TinyTools.Modules.ScreenDimmer
 
             // Destroy overlay
             DestroyOverlayWindow();
+
+            // Stop global hotkey
+            StopGlobalHotkey();
 
             // Hide tray icon
             if (trayIcon != null)
@@ -439,6 +487,59 @@ namespace TinyTools.Modules.ScreenDimmer
                 overlayForm.Close();
                 overlayForm.Dispose();
                 overlayForm = null;
+            }
+        }
+
+        private void StartGlobalHotkey()
+        {
+            try
+            {
+                if (globalMouseHook == null)
+                {
+                    globalMouseHook = GlobalMouseHook.Instance;
+                    GlobalMouseHook.GlobalMouseWheel += OnGlobalMouseWheel;
+                }
+                globalMouseHook.Start();
+                Console.WriteLine("✓ Global hotkey (Ctrl+Shift+Mouse Wheel) enabled");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to start global hotkey: {ex.Message}");
+            }
+        }
+
+        private void StopGlobalHotkey()
+        {
+            try
+            {
+                if (globalMouseHook != null)
+                {
+                    GlobalMouseHook.GlobalMouseWheel -= OnGlobalMouseWheel;
+                    globalMouseHook.Stop();
+                    globalMouseHook = null;
+                }
+                Console.WriteLine("✗ Global hotkey disabled");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error stopping global hotkey: {ex.Message}");
+            }
+        }
+
+        private void OnGlobalMouseWheel(object? sender, GlobalMouseHook.MouseWheelEventArgs e)
+        {
+            // Check if Ctrl+Shift is pressed (and Alt is not pressed to avoid conflicts)
+            if (e.CtrlPressed && e.ShiftPressed && !e.AltPressed)
+            {
+                // Calculate brightness change (1% per wheel notch)
+                int brightnessChange = (e.Delta > 0) ? 1 : -1;
+                int newBrightness = Math.Max(10, Math.Min(100, currentBrightness + brightnessChange));
+                
+                if (newBrightness != currentBrightness)
+                {
+                    Brightness = newBrightness;
+                    Console.WriteLine($"Global hotkey: Brightness changed to {newBrightness}%");
+                }
             }
         }
     }
