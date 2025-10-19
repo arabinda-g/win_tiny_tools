@@ -307,7 +307,7 @@ namespace ScreenDimmer
 
             for (int i = 0; i < 256; i++)
             {
-                ushort value = (ushort)(Math.Pow((double)i / 255.0, 1.0 / gamma) * 65535.0);
+                ushort value = (ushort)(Math.Pow((double)i / 255.0, 1.0 / gamma) * 65535.0 * gamma);
                 value = Math.Min(value, (ushort)65535);
 
                 gammaRamp.Red[i] = value;
