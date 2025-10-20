@@ -41,6 +41,57 @@ namespace TinyTools
                 tools.Add(notepad3Tool);
                 Logger.Instance.LogTrace("Notepad3 Hotkey tool added to tools list");
 
+                // Add Paint hotkey tool
+                Logger.Instance.LogDebug("Adding Paint Hotkey tool");
+                var paintTool = new ToolModule("Paint Hotkey", "Close Paint with Ctrl+W");
+                paintTool.SetStartFunction(() => {
+                    Logger.Instance.LogInfo("Starting Paint Hook");
+                    PaintHook.Instance.StartHook();
+                    Logger.Instance.LogDebug("Paint Hook started successfully");
+                });
+                paintTool.SetStopFunction(() => {
+                    Logger.Instance.LogInfo("Stopping Paint Hook");
+                    PaintHook.Instance.StopHook();
+                    Logger.Instance.LogDebug("Paint Hook stopped successfully");
+                });
+                paintTool.Enabled = true; // Default enabled
+                tools.Add(paintTool);
+                Logger.Instance.LogTrace("Paint Hotkey tool added to tools list");
+
+                // Add Calculator hotkey tool
+                Logger.Instance.LogDebug("Adding Calculator Hotkey tool");
+                var calculatorTool = new ToolModule("Calculator Hotkey", "Close Calculator with Ctrl+W");
+                calculatorTool.SetStartFunction(() => {
+                    Logger.Instance.LogInfo("Starting Calculator Hook");
+                    CalculatorHook.Instance.StartHook();
+                    Logger.Instance.LogDebug("Calculator Hook started successfully");
+                });
+                calculatorTool.SetStopFunction(() => {
+                    Logger.Instance.LogInfo("Stopping Calculator Hook");
+                    CalculatorHook.Instance.StopHook();
+                    Logger.Instance.LogDebug("Calculator Hook stopped successfully");
+                });
+                calculatorTool.Enabled = true; // Default enabled
+                tools.Add(calculatorTool);
+                Logger.Instance.LogTrace("Calculator Hotkey tool added to tools list");
+
+                // Add Snipping Tool hotkey tool
+                Logger.Instance.LogDebug("Adding Snipping Tool Hotkey tool");
+                var snippingToolTool = new ToolModule("Snipping Tool Hotkey", "Close Snipping Tool with Ctrl+W");
+                snippingToolTool.SetStartFunction(() => {
+                    Logger.Instance.LogInfo("Starting Snipping Tool Hook");
+                    SnippingToolHook.Instance.StartHook();
+                    Logger.Instance.LogDebug("Snipping Tool Hook started successfully");
+                });
+                snippingToolTool.SetStopFunction(() => {
+                    Logger.Instance.LogInfo("Stopping Snipping Tool Hook");
+                    SnippingToolHook.Instance.StopHook();
+                    Logger.Instance.LogDebug("Snipping Tool Hook stopped successfully");
+                });
+                snippingToolTool.Enabled = true; // Default enabled
+                tools.Add(snippingToolTool);
+                Logger.Instance.LogTrace("Snipping Tool Hotkey tool added to tools list");
+
                 // Add ScreenDimmer tool
                 Logger.Instance.LogDebug("Adding Screen Dimmer tool");
                 var screenDimmerTool = new ToolModule("Screen Dimmer", "Control screen brightness with gamma ramp or overlay");
