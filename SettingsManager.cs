@@ -138,12 +138,8 @@ namespace TinyTools
                     {
                         if (enable)
                         {
-                            var exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                            // For .NET Framework, use the assembly location directly
-                            if (string.IsNullOrEmpty(exePath))
-                            {
-                                exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-                            }
+                            // Get the executable path, not the assembly location (.dll)
+                            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
                             key.SetValue(valueName, exePath);
                         }
                         else
