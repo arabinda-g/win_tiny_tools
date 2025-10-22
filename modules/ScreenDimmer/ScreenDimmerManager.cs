@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Reflection;
@@ -25,6 +27,17 @@ namespace TinyTools.Modules.ScreenDimmer
         private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
         [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumDelegate lpfnEnum, IntPtr dwData);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+
+        private delegate bool MonitorEnumDelegate(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData);
+
+        [DllImport("user32.dll")]
         private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
 
         [DllImport("kernel32.dll")]
@@ -45,6 +58,39 @@ namespace TinyTools.Modules.ScreenDimmer
             public ushort[] Blue;
         }
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct MONITORINFOEX
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public uint dwFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string szDevice;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        // Monitor information class
+        public class MonitorInfo
+        {
+            public IntPtr Handle { get; set; }
+            public Rectangle Bounds { get; set; }
+            public Rectangle WorkArea { get; set; }
+            public string DeviceName { get; set; } = "";
+            public bool IsPrimary { get; set; }
+            public bool IsSelected { get; set; } = true;
+            public RAMP OriginalGammaRamp { get; set; }
+            public bool OriginalGammaStored { get; set; }
+        }
+
         // Dimming methods
         public enum DimmingMethod
         {
@@ -59,11 +105,13 @@ namespace TinyTools.Modules.ScreenDimmer
 
         // Private fields
         private ScreenDimmerSettingsForm? settingsForm;
-        private ScreenDimmerOverlayForm? overlayForm;
+        private Dictionary<IntPtr, ScreenDimmerOverlayForm> overlayForms = new Dictionary<IntPtr, ScreenDimmerOverlayForm>();
         private NotifyIcon? trayIcon;
         private GlobalMouseHook? globalMouseHook;
         
         private int currentBrightness = 100;
+        private List<MonitorInfo> monitors = new List<MonitorInfo>();
+        private List<MonitorInfo> selectedMonitors = new List<MonitorInfo>();
         private RAMP originalGammaRamp;
         private bool originalGammaStored = false;
         private DimmingMethod currentDimmingMethod = DimmingMethod.Auto;
@@ -136,6 +184,8 @@ namespace TinyTools.Modules.ScreenDimmer
         {
             // Load settings from config
             LoadSettings();
+            // Detect monitors
+            DetectMonitors();
         }
 
         private void LoadSettings()
@@ -144,6 +194,76 @@ namespace TinyTools.Modules.ScreenDimmer
             currentBrightness = config.Brightness;
             userSelectedMethod = config.DimmingMethod;
             globalHotkeyEnabled = config.GlobalHotkeyEnabled;
+        }
+
+        private void DetectMonitors()
+        {
+            monitors.Clear();
+            EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, MonitorEnumProc, IntPtr.Zero);
+            selectedMonitors = monitors.Where(m => m.IsSelected).ToList();
+        }
+
+        private bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData)
+        {
+            MONITORINFOEX mi = new MONITORINFOEX();
+            mi.cbSize = Marshal.SizeOf(mi);
+            
+            if (GetMonitorInfo(hMonitor, ref mi))
+            {
+                var monitor = new MonitorInfo
+                {
+                    Handle = hMonitor,
+                    Bounds = new Rectangle(mi.rcMonitor.Left, mi.rcMonitor.Top, 
+                                         mi.rcMonitor.Right - mi.rcMonitor.Left, 
+                                         mi.rcMonitor.Bottom - mi.rcMonitor.Top),
+                    WorkArea = new Rectangle(mi.rcWork.Left, mi.rcWork.Top,
+                                           mi.rcWork.Right - mi.rcWork.Left,
+                                           mi.rcWork.Bottom - mi.rcWork.Top),
+                    DeviceName = mi.szDevice,
+                    IsPrimary = (mi.dwFlags & 1) != 0,
+                    IsSelected = true
+                };
+                
+                monitors.Add(monitor);
+            }
+            
+            return true;
+        }
+
+        public void UpdateSelectedMonitors(List<MonitorInfo> newSelectedMonitors)
+        {
+            selectedMonitors = newSelectedMonitors;
+            
+            // Apply current brightness to newly selected monitors
+            if (isRunning)
+            {
+                SetScreenBrightness(currentBrightness);
+            }
+        }
+
+        public void ResetMonitorBrightness(MonitorInfo monitor)
+        {
+            if (currentDimmingMethod == DimmingMethod.GammaRamp && monitor.OriginalGammaStored)
+            {
+                // Restore original gamma for this monitor
+                IntPtr hdc = GetDC(IntPtr.Zero);
+                if (hdc != IntPtr.Zero)
+                {
+                    var gammaRamp = monitor.OriginalGammaRamp;
+                    SetDeviceGammaRamp(hdc, ref gammaRamp);
+                    ReleaseDC(IntPtr.Zero, hdc);
+                }
+            }
+            else if (currentDimmingMethod == DimmingMethod.Overlay)
+            {
+                // Remove overlay for this monitor
+                if (overlayForms.ContainsKey(monitor.Handle))
+                {
+                    overlayForms[monitor.Handle].Close();
+                    overlayForms[monitor.Handle].Dispose();
+                    overlayForms.Remove(monitor.Handle);
+                }
+            }
         }
 
         private static Icon GetEmbeddedScreenDimmerIcon()
@@ -195,8 +315,8 @@ namespace TinyTools.Modules.ScreenDimmer
                 RestoreOriginalGamma();
             }
 
-            // Destroy overlay
-            DestroyOverlayWindow();
+            // Destroy overlays
+            DestroyOverlayWindows();
 
             // Stop global hotkey
             StopGlobalHotkey();
@@ -352,7 +472,7 @@ namespace TinyTools.Modules.ScreenDimmer
             }
             else if (currentDimmingMethod == DimmingMethod.Overlay)
             {
-                DestroyOverlayWindow();
+                DestroyOverlayWindows();
             }
 
             // Set new method
@@ -456,38 +576,55 @@ namespace TinyTools.Modules.ScreenDimmer
         {
             if (brightness >= 100)
             {
-                DestroyOverlayWindow();
+                DestroyOverlayWindows();
                 return;
             }
 
-            if (overlayForm == null)
+            // Create overlay for each selected monitor
+            foreach (var monitor in selectedMonitors)
             {
-                CreateOverlayWindow();
+                if (!overlayForms.ContainsKey(monitor.Handle))
+                {
+                    CreateOverlayWindow(monitor);
+                }
+
+                if (overlayForms.ContainsKey(monitor.Handle))
+                {
+                    int opacity = (int)((100 - brightness) * 2.3);
+                    opacity = Math.Max(0, Math.Min(255, opacity));
+
+                    overlayForms[monitor.Handle].SetOpacity((byte)opacity);
+                    overlayForms[monitor.Handle].Show();
+                }
             }
 
-            if (overlayForm != null)
+            // Remove overlays for unselected monitors
+            var monitorsToRemove = overlayForms.Keys.Where(handle => 
+                !selectedMonitors.Any(m => m.Handle == handle)).ToList();
+            
+            foreach (var handle in monitorsToRemove)
             {
-                int opacity = (int)((100 - brightness) * 2.3);
-                opacity = Math.Max(0, Math.Min(255, opacity));
-
-                overlayForm.SetOpacity((byte)opacity);
-                overlayForm.Show();
+                overlayForms[handle].Close();
+                overlayForms[handle].Dispose();
+                overlayForms.Remove(handle);
             }
         }
 
-        private void CreateOverlayWindow()
+        private void CreateOverlayWindow(MonitorInfo monitor)
         {
-            overlayForm = new ScreenDimmerOverlayForm();
+            var overlayForm = new ScreenDimmerOverlayForm();
+            overlayForm.SetBounds(monitor.Bounds.X, monitor.Bounds.Y, monitor.Bounds.Width, monitor.Bounds.Height);
+            overlayForms[monitor.Handle] = overlayForm;
         }
 
-        private void DestroyOverlayWindow()
+        private void DestroyOverlayWindows()
         {
-            if (overlayForm != null)
+            foreach (var overlay in overlayForms.Values)
             {
-                overlayForm.Close();
-                overlayForm.Dispose();
-                overlayForm = null;
+                overlay.Close();
+                overlay.Dispose();
             }
+            overlayForms.Clear();
         }
 
         private void StartGlobalHotkey()

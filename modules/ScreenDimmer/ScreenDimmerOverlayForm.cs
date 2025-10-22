@@ -33,15 +33,10 @@ namespace TinyTools.Modules.ScreenDimmer
         {
             // Form properties for fullscreen overlay
             this.FormBorderStyle = FormBorderStyle.None;
-            this.WindowState = FormWindowState.Maximized;
+            this.WindowState = FormWindowState.Normal;
             this.TopMost = true;
             this.ShowInTaskbar = false;
             this.BackColor = Color.Black;
-            
-            // Get screen dimensions for all monitors
-            Rectangle screenBounds = SystemInformation.VirtualScreen;
-            this.Location = screenBounds.Location;
-            this.Size = screenBounds.Size;
 
             // Make the form a layered window
             this.SetStyle(ControlStyles.SupportsTransparentBackColor, true);
@@ -90,10 +85,6 @@ namespace TinyTools.Modules.ScreenDimmer
         protected override void SetVisibleCore(bool value)
         {
             base.SetVisibleCore(value);
-            if (value && this.WindowState == FormWindowState.Minimized)
-            {
-                this.WindowState = FormWindowState.Maximized;
-            }
         }
 
         // Override WndProc to handle window messages
