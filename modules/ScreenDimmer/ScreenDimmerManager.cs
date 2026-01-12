@@ -26,6 +26,12 @@ namespace TinyTools.Modules.ScreenDimmer
         [DllImport("user32.dll")]
         private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
+        [DllImport("gdi32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr CreateDC(string lpszDriver, string lpszDevice, string? lpszOutput, IntPtr lpInitData);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteDC(IntPtr hdc);
+
         [DllImport("user32.dll")]
         private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
 
@@ -245,13 +251,13 @@ namespace TinyTools.Modules.ScreenDimmer
         {
             if (currentDimmingMethod == DimmingMethod.GammaRamp && monitor.OriginalGammaStored)
             {
-                // Restore original gamma for this monitor
-                IntPtr hdc = GetDC(IntPtr.Zero);
+                // Restore original gamma for this specific monitor using its device name
+                IntPtr hdc = CreateDC(monitor.DeviceName, monitor.DeviceName, null, IntPtr.Zero);
                 if (hdc != IntPtr.Zero)
                 {
                     var gammaRamp = monitor.OriginalGammaRamp;
                     SetDeviceGammaRamp(hdc, ref gammaRamp);
-                    ReleaseDC(IntPtr.Zero, hdc);
+                    DeleteDC(hdc);
                 }
             }
             else if (currentDimmingMethod == DimmingMethod.Overlay)
@@ -417,48 +423,86 @@ namespace TinyTools.Modules.ScreenDimmer
 
         private bool TestGammaSupport()
         {
-            IntPtr hdc = GetDC(IntPtr.Zero);
-            if (hdc == IntPtr.Zero) return false;
-
-            RAMP testRamp = new RAMP
+            // Test gamma support on each selected monitor
+            foreach (var monitor in selectedMonitors)
             {
-                Red = new ushort[256],
-                Green = new ushort[256],
-                Blue = new ushort[256]
-            };
+                IntPtr hdc = CreateDC(monitor.DeviceName, monitor.DeviceName, null, IntPtr.Zero);
+                if (hdc == IntPtr.Zero) continue;
 
-            bool supported = GetDeviceGammaRamp(hdc, ref testRamp);
-            ReleaseDC(IntPtr.Zero, hdc);
-
-            return supported;
-        }
-
-        private void StoreOriginalGamma()
-        {
-            IntPtr hdc = GetDC(IntPtr.Zero);
-            if (hdc != IntPtr.Zero)
-            {
-                originalGammaRamp = new RAMP
+                RAMP testRamp = new RAMP
                 {
                     Red = new ushort[256],
                     Green = new ushort[256],
                     Blue = new ushort[256]
                 };
 
-                originalGammaStored = GetDeviceGammaRamp(hdc, ref originalGammaRamp);
-                ReleaseDC(IntPtr.Zero, hdc);
+                bool supported = GetDeviceGammaRamp(hdc, ref testRamp);
+                DeleteDC(hdc);
+
+                if (supported) return true;
             }
+
+            // Fallback to primary DC if no monitors selected
+            if (selectedMonitors.Count == 0)
+            {
+                IntPtr hdc = GetDC(IntPtr.Zero);
+                if (hdc == IntPtr.Zero) return false;
+
+                RAMP testRamp = new RAMP
+                {
+                    Red = new ushort[256],
+                    Green = new ushort[256],
+                    Blue = new ushort[256]
+                };
+
+                bool supported = GetDeviceGammaRamp(hdc, ref testRamp);
+                ReleaseDC(IntPtr.Zero, hdc);
+                return supported;
+            }
+
+            return false;
+        }
+
+        private void StoreOriginalGamma()
+        {
+            // Store original gamma for each monitor
+            foreach (var monitor in monitors)
+            {
+                IntPtr hdc = CreateDC(monitor.DeviceName, monitor.DeviceName, null, IntPtr.Zero);
+                if (hdc != IntPtr.Zero)
+                {
+                    var ramp = new RAMP
+                    {
+                        Red = new ushort[256],
+                        Green = new ushort[256],
+                        Blue = new ushort[256]
+                    };
+
+                    if (GetDeviceGammaRamp(hdc, ref ramp))
+                    {
+                        monitor.OriginalGammaRamp = ramp;
+                        monitor.OriginalGammaStored = true;
+                    }
+                    DeleteDC(hdc);
+                }
+            }
+            originalGammaStored = monitors.Any(m => m.OriginalGammaStored);
         }
 
         private void RestoreOriginalGamma()
         {
-            if (originalGammaStored)
+            // Restore original gamma for each monitor
+            foreach (var monitor in monitors)
             {
-                IntPtr hdc = GetDC(IntPtr.Zero);
-                if (hdc != IntPtr.Zero)
+                if (monitor.OriginalGammaStored)
                 {
-                    SetDeviceGammaRamp(hdc, ref originalGammaRamp);
-                    ReleaseDC(IntPtr.Zero, hdc);
+                    IntPtr hdc = CreateDC(monitor.DeviceName, monitor.DeviceName, null, IntPtr.Zero);
+                    if (hdc != IntPtr.Zero)
+                    {
+                        var ramp = monitor.OriginalGammaRamp;
+                        SetDeviceGammaRamp(hdc, ref ramp);
+                        DeleteDC(hdc);
+                    }
                 }
             }
         }
@@ -554,21 +598,28 @@ namespace TinyTools.Modules.ScreenDimmer
                 gammaRamp.Blue[i] = value;
             }
 
-            IntPtr hdc = GetDC(IntPtr.Zero);
-            if (hdc != IntPtr.Zero)
+            bool anySuccess = false;
+
+            // Apply gamma to each selected monitor
+            foreach (var monitor in selectedMonitors)
             {
-                if (!SetDeviceGammaRamp(hdc, ref gammaRamp))
+                IntPtr hdc = CreateDC(monitor.DeviceName, monitor.DeviceName, null, IntPtr.Zero);
+                if (hdc != IntPtr.Zero)
                 {
-                    if (userSelectedMethod == DimmingMethod.Auto)
+                    if (SetDeviceGammaRamp(hdc, ref gammaRamp))
                     {
-                        gammaSupported = false;
-                        currentDimmingMethod = DimmingMethod.Overlay;
-                        ReleaseDC(IntPtr.Zero, hdc);
-                        SetScreenBrightnessOverlay(brightness);
-                        return;
+                        anySuccess = true;
                     }
+                    DeleteDC(hdc);
                 }
-                ReleaseDC(IntPtr.Zero, hdc);
+            }
+
+            // Fallback to overlay if gamma failed on all monitors
+            if (!anySuccess && selectedMonitors.Count > 0 && userSelectedMethod == DimmingMethod.Auto)
+            {
+                gammaSupported = false;
+                currentDimmingMethod = DimmingMethod.Overlay;
+                SetScreenBrightnessOverlay(brightness);
             }
         }
 
