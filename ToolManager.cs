@@ -92,6 +92,23 @@ namespace TinyTools
                 tools.Add(snippingToolTool);
                 Logger.Instance.LogTrace("Snipping Tool Hotkey tool added to tools list");
 
+                // Add XYplorer hotkey tool
+                Logger.Instance.LogDebug("Adding XYplorer Hotkey tool");
+                var xyplorerTool = new ToolModule("XYplorer Hotkey", "Open XYplorer with Win+E instead of Explorer");
+                xyplorerTool.SetStartFunction(() => {
+                    Logger.Instance.LogInfo("Starting XYplorer Hook");
+                    XYplorerHook.Instance.StartHook();
+                    Logger.Instance.LogDebug("XYplorer Hook started successfully");
+                });
+                xyplorerTool.SetStopFunction(() => {
+                    Logger.Instance.LogInfo("Stopping XYplorer Hook");
+                    XYplorerHook.Instance.StopHook();
+                    Logger.Instance.LogDebug("XYplorer Hook stopped successfully");
+                });
+                xyplorerTool.Enabled = false; // Default disabled
+                tools.Add(xyplorerTool);
+                Logger.Instance.LogTrace("XYplorer Hotkey tool added to tools list");
+
                 // Add ScreenDimmer tool
                 Logger.Instance.LogDebug("Adding Screen Dimmer tool");
                 var screenDimmerTool = new ToolModule("Screen Dimmer", "Control screen brightness with gamma ramp or overlay");
